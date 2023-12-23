@@ -1,0 +1,115 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Skandináv Lottó Gépi Számgenerátor</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.9.3/css/bulma.min.css">
+    <style>
+        body { font-family: 'Arial', sans-serif; } /* Using Arial font for Hungarian characters */
+        #generatedNumbers { font-size: 1.5em; } /* Increasing the font size */
+        #history { margin-top: 20px; }
+        .number-list { margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <section class="section">
+        <div class="container">
+            <h1 class="title">Skandináv Lottó Gépi Számgenerátor</h1>
+            <div class="field">
+                <label class="label">Kizárt számok (vesszővel elválasztva):</label>
+                <div class="control">
+                    <input class="input" type="text" id="userExclusions" oninput="updateUserExclusions()" placeholder="Pl.: 3, 7, 15">
+                </div>
+            </div>
+            <button class="button is-primary" onclick="generateRandomNumbers()">Számok generálása</button>
+            <div id="generatedNumbers"></div>
+            <div id="history">
+                <h2 class="title is-4">Előző számok:</h2>
+                <ul id="historyList"></ul>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        let excludedCombinations = [];
+        let userExcludedNumbers = [];
+        let history = [];
+
+        async function fetchExcludedCombinations() {
+            const url = "https://raw.githubusercontent.com/llssdd/lottoNoGen/main/history.txt";
+            try {
+                const response = await fetch(url);
+                const text = await response.text();
+                const lines = text.trim().split('\n');
+                excludedCombinations = lines.map(line => line.trim().split(/,\s*/).map(Number));
+            } catch (error) {
+                console.error("Hiba az kizárt kombinációk lekérése közben:", error);
+            }
+        }
+
+        function updateUserExclusions() {
+            const userInput = document.getElementById('userExclusions').value;
+            userExcludedNumbers = userInput.split(/,\s*/).map(Number);
+        }
+
+        function isPrime(num) {
+            for (let i = 2; i <= Math.sqrt(num); i++) {
+                if (num % i === 0) return false;
+            }
+            return num > 1;
+        }
+
+        function hasMathematicalRelation(numbers) {
+            return numbers.every(num => {
+                if (num === 1) return true; // Exclude the number 1 from the comparison
+                return numbers.every(otherNum => {
+                    if (otherNum === 1 || num === otherNum) return true;
+                    return num % otherNum === 0 || otherNum % num === 0;
+                });
+            });
+        }
+
+        function isExcluded(numbers) {
+            return excludedCombinations.some(combination => 
+                combination.length === numbers.length && 
+                combination.every((value, index) => value === numbers[index])
+            ) || userExcludedNumbers.some(num => numbers.includes(num));
+        }
+
+        function updateHistory() {
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML = ''; // Clear existing history
+            history.forEach(numbers => {
+                let listItem = document.createElement('li');
+                listItem.textContent = numbers;
+                historyList.appendChild(listItem);
+            });
+        }
+
+        function generateRandomNumbers() {
+            let numbers, primeCount;
+            do {
+                numbers = [];
+                primeCount = 0;
+                while (numbers.length < 7) {
+                    let randNum = Math.floor(Math.random() * 35) + 1; 
+                    if (!numbers.includes(randNum)) {
+                        numbers.push(randNum);
+                        if (isPrime(randNum)) {
+                            primeCount++;
+                        }
+                    }
+                }
+                numbers.sort((a, b) => a - b);
+            } while (isExcluded(numbers) || primeCount === 7 || hasMathematicalRelation(numbers));
+
+            history.push(numbers.join(', '));
+            document.getElementById('generatedNumbers').innerText = 'Generált számok: ' + numbers.join(', ');
+            updateHistory();
+        }
+
+        fetchExcludedCombinations();
+    </script>
+</body>
+</html>
